@@ -4,8 +4,6 @@
 #include <string>
 #include <map>
 #include <locale>
-#include <codecvt>
-#include <cctype>
 #include <chrono>
 
 struct LightHash {
@@ -143,7 +141,7 @@ int main(int argc, char* argv[]) {
 
     auto start = std::chrono::high_resolution_clock::now();
     std::ifstream file(argv[1]);
-    file.imbue(std::locale(file.getloc(), new std::codecvt_utf8<wchar_t>));
+    file.imbue(std::locale(file.getloc()));
 
     std::chrono::duration<double> totalTransformTime(0);
     std::chrono::duration<double> totalToLowerTime(0);

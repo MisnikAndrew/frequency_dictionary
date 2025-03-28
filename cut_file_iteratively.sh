@@ -1,4 +1,5 @@
 MAX_SIZE_MB="$1"
+mkdir -p data
 
 for ((SIZE_MB=1; SIZE_MB<=MAX_SIZE_MB; SIZE_MB++)); do
     SIZE_BYTES=$((SIZE_MB * 1024 * 1024))
