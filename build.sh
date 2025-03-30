@@ -1,1 +1,1 @@
-g++ -std=c++14 -o baseline baseline.cpp
+g++ -std=c++17 -O3 -o baseline baseline.cpp
