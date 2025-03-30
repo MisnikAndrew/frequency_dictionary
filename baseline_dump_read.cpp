@@ -27,103 +27,142 @@ struct LightHash {
     }
  };
 
- template<typename Key, 
-          typename Value, 
-          typename Hash = LightHash >
- struct FastUnorderedMap {
+ struct LightHashV2
+{
+    inline uint32_t operator()(std::string sv) const noexcept
+    {
+        uint32_t hash = 1;
+        for (char c : sv) {
+            hash ^= c;
+            hash *= FNV32PRIME;
+        }
+        return hash;
+    }
+};
+ 
+template<typename Hash = LightHash>
+struct FastUnorderedMap {
     struct Bucket {
-       bool occupied;
-       Key key;
-       Value value;
-       Bucket() : occupied(false) {}
+        std::string key;
+        int value;
+        bool used;
     };
  
     std::vector<Bucket> table;
-    uint32_t num_elements;
+    uint32_t numElements;
     uint32_t capacity;
-    float max_load_factor;
+    float maxLoadFactor;
     Hash hashFn;
 
     void rehash() { // 0.015 sec
-        uint32_t new_capacity = capacity * 2;
-        std::vector<Bucket> new_table(new_capacity);
+        uint32_t newCapacity = capacity * 2;
+        std::vector<Bucket> newTable(newCapacity);
         for (uint32_t i = 0; i < capacity; i++) {
-            if (table[i].occupied) {
-                uint32_t idx = hashFn(table[i].key) % new_capacity;
-                while (new_table[idx].occupied) {
-                    idx = (idx + 1) % new_capacity;
+            if (table[i].used) {
+                uint32_t idx = hashFn(table[i].key) % newCapacity;
+                while (newTable[idx].used) {
+                    idx = (idx + 1) % newCapacity;
                 }
-                new_table[idx].occupied = true;
-                new_table[idx].key = table[i].key;
-                new_table[idx].value = table[i].value;
+                newTable[idx] = {table[i].key, table[i].value, true};
             }
         }
-        table.swap(new_table);
-        capacity = new_capacity;
-    }
- 
-    inline uint32_t probe(const Key & key) const {
-       return hashFn(key) % capacity;
-    }
- 
- public:
-    FastUnorderedMap(uint32_t init_capacity = 16, float load_factor = 0.5f)
-       : num_elements(0), capacity(init_capacity), max_load_factor(load_factor) {
-       table.resize(capacity);
-       table.reserve(init_capacity);
+        table.swap(newTable);
+        capacity = newCapacity;
     }
 
-    void insert(const Key & key) {
-        if (num_elements > capacity * max_load_factor) {
+ public:
+    FastUnorderedMap(uint32_t initCapacity = 16, float loadFactor = 0.5f)
+       : numElements(0), capacity(initCapacity), maxLoadFactor(loadFactor) {
+       table.resize(capacity);
+       table.reserve(initCapacity);
+    }
+
+    void insert(const std::string & key) {
+        if (numElements > capacity * maxLoadFactor) {
             rehash();
         }
-        uint32_t idx = probe(key);
-        while (table[idx].occupied) {
+        uint32_t idx = hashFn(key) % capacity;
+        while (table[idx].used) {
             if (table[idx].key == key) {
                 ++table[idx].value;
                 return;
             }
             idx = (idx + 1) % capacity;
         }
-        table[idx].occupied = true;
-        table[idx].key = key;
-        table[idx].value = 1;
-        ++num_elements;
+        table[idx] = {key, 1, true};
+        ++numElements;
         return;
     }
+ };
 
-    Value * find(const Key & key) {
-        uint32_t idx = probe(key);
-        uint32_t start = idx;
-        while (table[idx].occupied) {
-            if (table[idx].key == key) {
-                return &table[idx].value;
-            }
-            idx = (idx + 1) % capacity;
-            if (idx == start) break;
-        }
-        return nullptr;
+
+template<typename Hash = LightHash
+>
+struct FastUnorderedMapV2 {
+    struct Bucket {
+        std::size_t hashValue;
+        std::size_t keyIndex;
+        int value;
+        bool used;
+    };
+ 
+    std::vector<Bucket> table;
+    std::vector<std::string> keyStorage;
+ 
+    std::uint32_t numElements = 0;
+    std::uint32_t capacity    = 0;
+    float maxLoadFactor;
+    Hash hashFn;
+ 
+    FastUnorderedMapV2(std::uint32_t initCapacity = 16, float loadFactor = 0.5f)
+        : capacity(initCapacity), maxLoadFactor(loadFactor) {
+        table.resize(capacity);
+        table.reserve(initCapacity);
     }
  
-    Value & operator[](const Key & key) {
-       if (num_elements + 1 > capacity * max_load_factor) {
-          rehash();
-       }
-       uint32_t idx = probe(key);
-       uint32_t start = idx;
-       while (table[idx].occupied) {
-          if (table[idx].key == key) {
-             return table[idx].value;
-          }
-          idx = (idx + 1) % capacity;
-          if (idx == start) break;
-       }
-       table[idx].occupied = true;
-       table[idx].key = key;
-       ++num_elements;
-       return table[idx].value;
+    void rehash() {
+        std::uint32_t newCapacity = capacity * 2;
+        std::vector<Bucket> newTable(newCapacity);
+
+        for (auto &b : table) {
+            if (b.used) {
+                std::size_t idx = b.hashValue % newCapacity;
+                while (newTable[idx].used) {
+                    idx = (idx + 1) % newCapacity;
+                }
+                newTable[idx] = b;
+            }
+        }
+
+        table.swap(newTable);
+        capacity = newCapacity;
     }
- };
+ 
+    void insert(std::string const &key) {
+        if (numElements > capacity * maxLoadFactor) {
+            rehash();
+        }
+
+        std::size_t h = hashFn(key);
+        std::uint32_t idx = static_cast<std::uint32_t>(h % capacity);
+        while (table[idx].used) {
+            if (table[idx].hashValue == h) {
+                if (keyStorage[table[idx].keyIndex] == key) {
+                    ++table[idx].value;
+                    return;
+                }
+            }
+            idx = (idx + 1) % capacity;
+        }
+
+        table[idx] = {h, keyStorage.size(), 1, true};
+        keyStorage.emplace_back(key);
+        ++numElements;
+    }
+};
+ 
+
+
 
 int main(int argc, char* argv[]) {
     if (argc < 2) {
@@ -151,18 +190,18 @@ int main(int argc, char* argv[]) {
     }
 
     std::unordered_map<std::string, int> wordCount;
-    FastUnorderedMap<std::string, int> newWordCount;
+    FastUnorderedMapV2<> fastWordCount;
     char buffer[BUF_SIZE];
 
-    ssize_t bytes_read = 0;
+    ssize_t bytesRead = 0;
     bool state = false;
     int lastAlpha = -1;
     uint16_t prevSize = 0;
     char prevWord[32];
 
-    while ((bytes_read = read(fd, buffer, BUF_SIZE)) > 0) { // 0.05 sec
-        for (size_t idx = 0; idx < bytes_read; ++idx) {
-            if (std::isalpha(buffer[idx])) {
+    while ((bytesRead = read(fd, buffer, BUF_SIZE)) > 0) { // 0.05 sec
+        for (size_t idx = 0; idx < bytesRead; ++idx) {
+            if ((buffer[idx]>= 'A' && buffer[idx] <= 'Z') || (buffer[idx] >= 'a' && buffer[idx] <= 'z')) {
                 if (buffer[idx] >= 'A' && buffer[idx] <= 'Z') {
                     buffer[idx] += 32;
                 }
@@ -173,26 +212,34 @@ int main(int argc, char* argv[]) {
             } else {
                 if (prevSize) {
                     std::strncpy(prevWord + prevSize, buffer, idx);
-                    newWordCount.insert(std::string(prevWord, prevSize + idx));
+                    if (useFastMap) {
+                        fastWordCount.insert(std::string(prevWord, prevSize + idx));
+                    } else {
+                        ++wordCount[std::string(prevWord, prevSize + idx)];
+                    }
                     prevSize = 0;
                 } else if (state) {
-                    newWordCount.insert(std::string(buffer + lastAlpha, idx - lastAlpha));
+                    if (useFastMap) {
+                        fastWordCount.insert(std::string(buffer + lastAlpha, idx - lastAlpha));
+                    } else {
+                        ++wordCount[std::string(buffer + lastAlpha, idx - lastAlpha)];
+                    }
                 }
                 state = false;
             }
         }
         if (state) {
-            prevSize = bytes_read - lastAlpha;
+            prevSize = bytesRead - lastAlpha;
             std::memcpy(prevWord, buffer + lastAlpha, prevSize);
         }
     }
 
     std::vector<std::pair<int, std::string>> result;
-    result.reserve(newWordCount.num_elements);
+    result.reserve(fastWordCount.numElements);
     if (useFastMap) { // 0.02 sec
-        for (const auto& pair : newWordCount.table) {
+        for (const auto& pair : fastWordCount.table) {
             if (pair.value > 0) {
-                result.push_back({pair.value, pair.key});
+                result.push_back({pair.value, ""});
             }
         }
     } else {

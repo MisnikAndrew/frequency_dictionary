@@ -11,6 +11,7 @@ done < results/results.txt
 
 IFS=','
 FOLDER_NAME="results/${1}/"
+mkdir $FOLDER_NAME
 echo "${result_sizes[*]}" > "${FOLDER_NAME}results_size.txt"
 echo "${time_taken[*]}" > "${FOLDER_NAME}results_times.txt"
 
