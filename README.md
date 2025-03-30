@@ -1,5 +1,7 @@
 # Подсчет частотного словаря на C++
 
+Best code in main_cpde.cpp <br>
+
 ## TO START
 0. Move pg.txt to ~/
 1. Run ./cut_file_iteratively.sh K to cut pg.txt into files of 1MB, 2MB, ... K MB. <br>
