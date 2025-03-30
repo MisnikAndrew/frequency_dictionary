@@ -9,8 +9,6 @@
 #include <unistd.h>
 #include <fcntl.h>
 
-#pragma GCC optimize unroll-loops
-
 #define FNV32INIT 0x811C9DC5
 #define FNV32PRIME 0x01000193
 
