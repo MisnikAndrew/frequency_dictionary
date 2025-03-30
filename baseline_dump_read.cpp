@@ -17,7 +17,7 @@
 #define FNV32PRIME 0x01000193
 
 struct LightHash {
-    uint32_t operator()(const std::string &str) const noexcept {
+    uint32_t operator()(const std::string_view& str) const noexcept {
         auto b = str.begin();
         uint32_t ans = 1;
         while (b != str.end()) {
@@ -161,7 +161,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::unordered_map<std::string, int> wordCount;
-    FastUnorderedMap<std::string, int> newWordCount;
+    FastUnorderedMap<std::string_view, int> newWordCount;
     char buffer[4096];
     std::string line;
     std::string word;

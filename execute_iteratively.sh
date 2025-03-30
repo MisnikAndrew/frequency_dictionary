@@ -1,6 +1,6 @@
 for i in $(seq 1 $1)
 do
-    ./baseline "data/pg_${i}.txt" --fast-map
+    ./baseline_dump_read "data/pg_${i}.txt" --fast-map
 done
 
-./baseline "pg.txt" --fast-map
+./baseline_dump_read "pg.txt" --fast-map

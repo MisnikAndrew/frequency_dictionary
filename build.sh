@@ -1,1 +1,1 @@
-g++ -std=c++14 -O3 -o baseline baseline.cpp
+g++ -std=c++14 -O3 -o baseline_dump_read baseline_dump_read.cpp

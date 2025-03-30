@@ -12,7 +12,7 @@
 #define FNV32PRIME 0x01000193
 
 struct LightHash {
-    uint32_t operator()(const std::string &str) const noexcept {
+    uint32_t operator()(const std::stringview &str) const noexcept {
         auto b = str.begin();
         uint32_t ans = 1;
         while (b != str.end()) {
