@@ -2,14 +2,9 @@
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <string.h>
 #include <map>
 #include <locale>
 #include <chrono>
-#include <unistd.h> // Для функции read
-#include <fcntl.h>  // Для open
-#include <cstring>  // Для strerror
-#include <cerrno> 
 
 #pragma GCC optimize unroll-loops
 
@@ -17,23 +12,24 @@
 #define FNV32PRIME 0x01000193
 
 struct LightHash {
-    uint32_t calc(const char str[64]) const noexcept {
+    uint32_t operator()(const std::string &str) const noexcept {
+        auto b = str.begin();
         uint32_t ans = 1;
-        size_t idx = 0;
-        while (idx < 64 && str[idx] != '\0') {
-            ans = (ans * FNV32PRIME) ^ str[idx];
-            ++idx;
+        while (b != str.end()) {
+            ans = (ans * FNV32PRIME) ^ *b++;
         }
         return ans;
     }
  };
 
- template<typename Hash = LightHash >
+ template<typename Key, 
+          typename Value, 
+          typename Hash = LightHash >
  struct FastUnorderedMap {
     struct Bucket {
        bool occupied;
-       char* key;
-       int value;
+       Key key;
+       Value value;
        Bucket() : occupied(false) {}
     };
  
@@ -48,7 +44,7 @@ struct LightHash {
         std::vector<Bucket> new_table(new_capacity);
         for (uint32_t i = 0; i < capacity; i++) {
             if (table[i].occupied) {
-                uint32_t idx = hashFn.calc(table[i].key) % new_capacity; 
+                uint32_t idx = hashFn(table[i].key) % new_capacity;
                 while (new_table[idx].occupied) {
                     idx = (idx + 1) % new_capacity;
                 }
@@ -61,19 +57,17 @@ struct LightHash {
         capacity = new_capacity;
     }
  
-    inline uint32_t probe(char key[64], size_t len) const {
-        key[len] = '\0';
-       return hashFn.calc(key) % capacity;
+    inline uint32_t probe(const Key & key) const {
+       return hashFn(key) % capacity;
     }
  
  public:
     FastUnorderedMap(uint32_t init_capacity = 16, float load_factor = 0.5f)
        : num_elements(0), capacity(init_capacity), max_load_factor(load_factor) {
        table.resize(capacity);
-       table.reserve(init_capacity);
     }
 
-    bool insert(char key[64], const int value) {
+    bool insert(const Key & key, const Value & value) {
         if (num_elements + 1 > capacity * max_load_factor) {
             rehash();
         }
@@ -92,7 +86,7 @@ struct LightHash {
         return true;
     }
 
-    int find(char key[64]) {
+    Value * find(const Key & key) {
         uint32_t idx = probe(key);
         uint32_t start = idx;
         while (table[idx].occupied) {
@@ -102,10 +96,10 @@ struct LightHash {
             idx = (idx + 1) % capacity;
             if (idx == start) break;
         }
-        return 0;
+        return nullptr;
     }
  
-    int& operator[](char key[64]) {
+    Value & operator[](const Key & key) {
        if (num_elements + 1 > capacity * max_load_factor) {
           rehash();
        }
@@ -122,27 +116,6 @@ struct LightHash {
        table[idx].key = key;
        ++num_elements;
        return table[idx].value;
-    }
-
-    void add(char key[64], size_t len) {
-        if (num_elements + 1 > capacity * max_load_factor) {
-            rehash();
-         }
-         uint32_t idx = probe(key, len);
-         uint32_t start = idx;
-         while (table[idx].occupied) {
-            if (table[idx].key == key) {
-                table[idx].value++;
-                return;
-            }
-            idx = (idx + 1) % capacity;
-            if (idx == start) break;
-         }
-         table[idx].occupied = true;
-
-         table[idx].key = key;
-         table[idx].value++;
-         ++num_elements;
     }
  };
 
@@ -166,10 +139,6 @@ int main(int argc, char* argv[]) {
 
     auto start = std::chrono::high_resolution_clock::now();
     std::ifstream file(argv[1]);
-    int fd = open(argv[1], O_RDONLY);
-    if (fd == -1) {
-        exit(1); // TODO
-    }
     file.imbue(std::locale(file.getloc()));
 
     
@@ -182,8 +151,8 @@ int main(int argc, char* argv[]) {
     }
 
     std::unordered_map<std::string, int> wordCount;
-    FastUnorderedMap<> newWordCount;
-    char buffer[4096];
+    FastUnorderedMap<std::string, int> newWordCount;
+    // char line[1024];
     std::string line;
     std::string word;
 
@@ -192,48 +161,46 @@ int main(int argc, char* argv[]) {
 
     // while (file.getline(line, sizeof(line))) {
     auto lineAllocStart = std::chrono::high_resolution_clock::now();
-    std::string curBuf;
-
-
-    // while (std::getline(file, line)) {
-    ssize_t bytes_read = 0;
-    bool state = false;
-    int lastAlpha = -1;
-    int prevSize = 0;
-    char prevWord[64];
-
-    while ((bytes_read = read(fd, buffer, sizeof(buffer))) > 0) {
+    while (std::getline(file, line)) {
         totalLineAllocTime += (std::chrono::high_resolution_clock::now() - lineAllocStart);
         ++lineAlloc;
-        for (size_t idx = 0; idx < bytes_read; ++idx) { // 4096 -> bytes_read ?
-            if (buffer[idx] >= 'A' && buffer[idx] <= 'Z') {
-                buffer[idx] += 32;
+        /* for (char& ch : line) {
+            if (ch >= 'A' && ch <= 'Z') {
+                ch += 32;
+            } else if (ch < 'a' || ch > 'z') {
+                ch = 32;
             }
-            if (std::isalpha(buffer[idx])) {
-                if (state == 0) {
-                    lastAlpha = idx;
-                }
-                state = 1;
+        }
+        */
+
+        for (char& ch : line) {
+            if (ch < 'A' || ch > 'z' || (ch > 'Z' && ch < 'a')) {
+                ch = 32;
+            } else if (ch >= 'A' && ch <= 'Z') {
+                ch += 32;
+            }
+        }
+        auto wordAllocStart = std::chrono::high_resolution_clock::now();
+        std::stringstream wss(line);
+        totalWordAllocTime += (std::chrono::high_resolution_clock::now() - wordAllocStart);
+        
+        while (wss >> word) {
+            ++wordAlloc;
+            //start = std::chrono::high_resolution_clock::now();
+            if (useFastMap) {
+                ++newWordCount[word];
             } else {
-                if (prevSize > 0) {
-                    std::strncpy(prevWord + prevSize, buffer, idx);
-                    newWordCount.add(prevWord, prevSize + idx);
-                    prevSize = 0;
-                } else if (state == 1) {
-                    newWordCount.add(buffer + lastAlpha, idx - lastAlpha);
-                }
-                state = 0;
+                ++wordCount[word];
             }
+            // totalIncrementsTime += (std::chrono::high_resolution_clock::now() - start1);
         }
-        if (state == 1) {
-            prevSize = bytes_read - lastAlpha;
-            std::memcpy(prevWord, buffer + lastAlpha, prevSize);
-        }
+        lineAllocStart = std::chrono::high_resolution_clock::now();
     }
 
     file.close();
 
     std::vector<std::pair<int, std::string>> result;
+    std::cerr << newWordCount.num_elements << '\n';
     result.reserve(newWordCount.num_elements);
     if (useFastMap) {
         for (const auto& pair : newWordCount.table) {
@@ -260,10 +227,10 @@ int main(int argc, char* argv[]) {
         std::cout << "Time elapsed: " << duration.count() << " seconds" << std::endl;
     }
 
-    // std::cerr << "lineAlloc: " << lineAlloc << '\n';
-    // std::cerr << "wordAlloc: " << wordAlloc << '\n';
-    // std::cout << "Total time spent on totalWordAllocTime: " << totalWordAllocTime.count() << " seconds" << std::endl;
-    // std::cout << "Total time spent on totalLineAllocTime: " << totalLineAllocTime.count() << " seconds" << std::endl;
+    std::cerr << "lineAlloc: " << lineAlloc << '\n';
+    std::cerr << "wordAlloc: " << wordAlloc << '\n';
+    std::cout << "Total time spent on totalWordAllocTime: " << totalWordAllocTime.count() << " seconds" << std::endl;
+    std::cout << "Total time spent on totalLineAllocTime: " << totalLineAllocTime.count() << " seconds" << std::endl;
 
     return 0;
 }

@@ -17,23 +17,24 @@
 #define FNV32PRIME 0x01000193
 
 struct LightHash {
-    uint32_t calc(const char str[64]) const noexcept {
+    uint32_t operator()(const std::string &str) const noexcept {
+        auto b = str.begin();
         uint32_t ans = 1;
-        size_t idx = 0;
-        while (idx < 64 && str[idx] != '\0') {
-            ans = (ans * FNV32PRIME) ^ str[idx];
-            ++idx;
+        while (b != str.end()) {
+            ans = (ans * FNV32PRIME) ^ *b++;
         }
         return ans;
     }
  };
 
- template<typename Hash = LightHash >
+ template<typename Key, 
+          typename Value, 
+          typename Hash = LightHash >
  struct FastUnorderedMap {
     struct Bucket {
        bool occupied;
-       char* key;
-       int value;
+       Key key;
+       Value value;
        Bucket() : occupied(false) {}
     };
  
@@ -48,7 +49,7 @@ struct LightHash {
         std::vector<Bucket> new_table(new_capacity);
         for (uint32_t i = 0; i < capacity; i++) {
             if (table[i].occupied) {
-                uint32_t idx = hashFn.calc(table[i].key) % new_capacity; 
+                uint32_t idx = hashFn(table[i].key) % new_capacity;
                 while (new_table[idx].occupied) {
                     idx = (idx + 1) % new_capacity;
                 }
@@ -61,9 +62,8 @@ struct LightHash {
         capacity = new_capacity;
     }
  
-    inline uint32_t probe(char key[64], size_t len) const {
-        key[len] = '\0';
-       return hashFn.calc(key) % capacity;
+    inline uint32_t probe(const Key & key) const {
+       return hashFn(key) % capacity;
     }
  
  public:
@@ -73,7 +73,7 @@ struct LightHash {
        table.reserve(init_capacity);
     }
 
-    bool insert(char key[64], const int value) {
+    bool insert(const Key & key, const Value & value) {
         if (num_elements + 1 > capacity * max_load_factor) {
             rehash();
         }
@@ -92,7 +92,7 @@ struct LightHash {
         return true;
     }
 
-    int find(char key[64]) {
+    Value * find(const Key & key) {
         uint32_t idx = probe(key);
         uint32_t start = idx;
         while (table[idx].occupied) {
@@ -102,10 +102,10 @@ struct LightHash {
             idx = (idx + 1) % capacity;
             if (idx == start) break;
         }
-        return 0;
+        return nullptr;
     }
  
-    int& operator[](char key[64]) {
+    Value & operator[](const Key & key) {
        if (num_elements + 1 > capacity * max_load_factor) {
           rehash();
        }
@@ -122,27 +122,6 @@ struct LightHash {
        table[idx].key = key;
        ++num_elements;
        return table[idx].value;
-    }
-
-    void add(char key[64], size_t len) {
-        if (num_elements + 1 > capacity * max_load_factor) {
-            rehash();
-         }
-         uint32_t idx = probe(key, len);
-         uint32_t start = idx;
-         while (table[idx].occupied) {
-            if (table[idx].key == key) {
-                table[idx].value++;
-                return;
-            }
-            idx = (idx + 1) % capacity;
-            if (idx == start) break;
-         }
-         table[idx].occupied = true;
-
-         table[idx].key = key;
-         table[idx].value++;
-         ++num_elements;
     }
  };
 
@@ -182,7 +161,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::unordered_map<std::string, int> wordCount;
-    FastUnorderedMap<> newWordCount;
+    FastUnorderedMap<std::string, int> newWordCount;
     char buffer[4096];
     std::string line;
     std::string word;
@@ -217,10 +196,10 @@ int main(int argc, char* argv[]) {
             } else {
                 if (prevSize > 0) {
                     std::strncpy(prevWord + prevSize, buffer, idx);
-                    newWordCount.add(prevWord, prevSize + idx);
+                    ++newWordCount[std::string(prevWord, prevSize + idx)];
                     prevSize = 0;
                 } else if (state == 1) {
-                    newWordCount.add(buffer + lastAlpha, idx - lastAlpha);
+                    ++newWordCount[std::string(buffer + lastAlpha, idx - lastAlpha)];
                 }
                 state = 0;
             }
