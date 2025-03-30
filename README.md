@@ -1,6 +1,6 @@
 # Подсчет частотного словаря на C++
 
-Best code in main_cpde.cpp <br>
+Best code in main_code.cpp <br>
 
 ## TO START
 0. Move pg.txt to ~/
