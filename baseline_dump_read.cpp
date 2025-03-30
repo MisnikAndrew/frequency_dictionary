@@ -40,7 +40,7 @@ struct LightHash {
     }
 };
  
-template<typename Hash = LightHash>
+template<typename Hash = std::hash<std::string>>
 struct FastUnorderedMap {
     struct Bucket {
         std::string key;
@@ -96,8 +96,7 @@ struct FastUnorderedMap {
  };
 
 
-template<typename Hash = LightHash
->
+template<typename Hash = std::hash<std::string> >
 struct FastUnorderedMapV2 {
     struct Bucket {
         std::size_t hashValue;
@@ -190,7 +189,7 @@ int main(int argc, char* argv[]) {
     }
 
     std::unordered_map<std::string, int> wordCount;
-    FastUnorderedMapV2<> fastWordCount;
+    FastUnorderedMapV2<LightHash> fastWordCount;
     char buffer[BUF_SIZE];
 
     ssize_t bytesRead = 0;
