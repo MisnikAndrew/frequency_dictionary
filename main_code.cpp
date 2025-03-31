@@ -236,7 +236,7 @@ int main(int argc, char* argv[]) {
     if (useFastMap) { // 0.02 sec
         for (const auto& pair : fastWordCount.table) {
             if (pair.value > 0) {
-                result.push_back({pair.value, ""});
+                result.push_back({pair.value, fastWordCount.keyStorage[pair.keyIndex]});
             }
         }
     } else {
@@ -247,6 +247,7 @@ int main(int argc, char* argv[]) {
     std::cout << "file_name = " << argv[1] << " | result size = " << result.size() << " | ";
 
     if (printResult) {
+        sort(result.begin(), result.end());
         for (const auto& pair : result) {
             printf("%d %s\n", pair.first, pair.second.c_str());
         }

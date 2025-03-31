@@ -17,9 +17,3 @@ In execute_iteratively.sh You can change program parameters:<br>
 2. You can copy them and put into results/results.txt <br>
 3. Execute ./scripts/results_extractor.sh <YOUR_METHOD_NAME> to parse result times and sizes to results/<YOUR_METHOD_NAME>/
 4. Add special metrics to sandbox.ipynb to build graphs
-
-
-## TODO
-1. Rewrite std::hash function with simple hash <br>
-2. Use std::vector to make less allocations <br>
-3. Rewrite FastUnorderedMap in more convenient way
