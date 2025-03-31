@@ -1,8 +1,16 @@
 # Подсчет частотного словаря на C++
 
 Best code in main_code.cpp <br>
+pg.txt is not in repository, because it's too big. <br>
 
-## TO START
+## Launch
+# To compile & execute without printing result
+./build.sh && ./execute.sh pg.txt
+
+# To compile & execute with printing result
+./build.sh && ./execute_with_printing.sh pg.txt
+
+## To start
 0. Move pg.txt to ~/
 1. Run ./cut_file_iteratively.sh K to cut pg.txt into files of 1MB, 2MB, ... K MB. <br>
 2. Run ./build.sh && ./execute_iteratively.sh K to compile&launch for first K files <br> <br>

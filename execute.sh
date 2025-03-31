@@ -1,0 +1,1 @@
+./main_code $1 --fast-map 
